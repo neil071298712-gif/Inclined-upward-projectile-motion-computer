@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>斜向拋射計算機</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #0f1628;
+    --border: #1e3a5f;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --text: #c8d8e8;
+    --muted: #4a6080;
+    --glow: 0 0 20px rgba(0,212,255,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  header h1 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(1.4rem, 4vw, 2.4rem);
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(0,212,255,0.6);
+    letter-spacing: 4px;
+    margin-bottom: 6px;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--glow);
+  }
+
+  .panel-title {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent);
+    font-size: 0.75rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Input groups */
+  .input-group {
+    margin-bottom: 16px;
+  }
+
+  .input-group label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .input-group label span {
+    color: var(--accent2);
+    font-size: 0.7rem;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .input-group input[type="number"] {
+    width: 100%;
+    background: rgba(0,212,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .input-group input[type="number"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(0,212,255,0.2);
+  }
+
+  .input-group input[type="number"]::-webkit-inner-spin-button { opacity: 0; }
+
+  .unit {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* Checkbox toggle */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    cursor: pointer;
+  }
+
+  .toggle-row input[type="checkbox"] { display: none; }
+
+  .toggle-pill {
+    width: 38px;
+    height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+
+  .toggle-pill::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 14px; height: 14px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  input[type="checkbox"]:checked + .toggle-pill { background: rgba(0,212,255,0.3); }
+  input[type="checkbox"]:checked + .toggle-pill::after { transform: translateX(18px); background: var(--accent); }
+
+  .toggle-label {
+    font-size: 0.8rem;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* Buttons */
+  .btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 10px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #0066aa, #00aadd);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(0,212,255,0.3);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 4px 30px rgba(0,212,255,0.6);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 18px 0;
+  }
+
+  /* Results */
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 6px;
+  }
+
+  .result-card {
+    background: rgba(0,212,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    transition: border-color 0.3s;
+  }
+
+  .result-card.highlight { border-color: var(--accent); box-shadow: 0 0 12px rgba(0,212,255,0.15); }
+  .result-card.highlight2 { border-color: var(--accent2); box-shadow: 0 0 12px rgba(255,107,53,0.15); }
+
+  .result-card .r-label {
+    font-size: 0.65rem;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .result-card .r-value {
+    font-size: 1.1rem;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent);
+  }
+
+  .result-card.highlight2 .r-value { color: var(--accent2); }
+
+  .result-card .r-unit {
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  /* Canvas area */
+  .canvas-wrap {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--glow);
+  }
+
+  .canvas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .canvas-header .panel-title { margin-bottom: 0; border: none; padding: 0; }
+
+  .playback-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ctrl-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+
+  .ctrl-btn:hover, .ctrl-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .canvas-info {
+    padding: 10px 20px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border);
+  }
+
+  .info-chip {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  .info-chip span { color: var(--accent3); }
+
+  /* Angle table */
+  .angle-table-wrap {
+    margin-top: 20px;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+  }
+
+  th {
+    color: var(--accent);
+    text-align: right;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  th:first-child { text-align: center; }
+
+  td {
+    text-align: right;
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(30,58,95,0.5);
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  td:first-child { text-align: center; color: var(--accent2); }
+
+  tr:hover td { background: rgba(0,212,255,0.04); }
+  tr.selected-row td { background: rgba(0,212,255,0.08); color: var(--accent); }
+
+  /* Loading / empty */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+  }
+
+  .progress-bar {
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.05s linear;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  /* Speed control */
+  .speed-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .speed-row label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+    height: 3px;
+  }
+
+  .speed-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+    min-width: 28px;
+  }
+
+  /* Mode tabs */
+  .mode-tabs {
+    display: flex;
+    gap: 2px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 18px;
+  }
+
+  .mode-tab {
+    flex: 1;
+    padding: 7px 4px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .mode-tab.active {
+    background: rgba(0,212,255,0.15);
+    color: var(--accent);
+    box-shadow: 0 0 10px rgba(0,212,255,0.1);
+  }
+
+  .known-section { display: none; }
+  .known-section.visible { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>⟨ 斜向拋射計算機 ⟩</h1>
+    <p>PROJECTILE MOTION ANALYZER · PHYSICS ENGINE v2.0</p>
+  </header>
+
+  <div class="main-grid">
+    <!-- Left Panel -->
+    <div>
+      <div class="panel">
+        <div class="panel-title">▸ 已知條件輸入</div>
+
+        <!-- Mode tabs -->
+        <div class="mode-tabs">
+          <button class="mode-tab active" onclick="setMode('v0_angle')">v₀ + θ</button>
+          <button class="mode-tab" onclick="setMode('v0_h')">v₀ + 高度</button>
+          <button class="mode-tab" onclick="setMode('v0_R')">v₀ + R</button>
+          <button class="mode-tab" onclick="setMode('R_T')">R + T</button>
+          <button class="mode-tab" onclick="setMode('custom')">自訂</button>
+        </div>
+
+        <!-- v0 + angle mode -->
+        <div id="mode-v0_angle" class="known-section visible">
+          <div class="input-group">
+            <label>初速度 v₀ <span>INITIAL VELOCITY</span></label>
+            <div class="input-row">
+              <input type="number" id="i_v0_1" placeholder="0" value="20" min="0">
+              <span class="unit">m/s</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>拋射角 θ <span>LAUNCH ANGLE</span></label>
+            <div class="input-row">
+              <input type="number" id="i_angle_1" placeholder="0" value="45" min="0" max="90">
+              <span class="unit">deg</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>初始高度 y₀ <span>INITIAL HEIGHT (選填)</span></label>
+            <div class="input-row">
+              <input type="number" id="i_h0_1" placeholder="0" value="0" min="0">
+              <span class="unit">m</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- v0 + height mode -->
+        <div id="mode-v0_h" class="known-section">
+          <div class="input-group">
+            <label>初速度 v₀ <span>INITIAL VELOCITY</span></label>
+            <div class="input-row">
+              <input type="number" id="i_v0_2" placeholder="0" value="20" min="0">
+              <span class="unit">m/s</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>初始高度 y₀ <span>INITIAL HEIGHT</span></label>
+            <div class="input-row">
+              <input type="number" id="i_h_2" placeholder="0" value="10" min="0">
+              <span class="unit">m</span>
+            </div>
+          </div>
+          <p style="font-size:0.7rem;color:var(--muted);font-family:'Share Tech Mono',monospace;margin-bottom:12px;">→ 下表將列出不同角度對應的各項數值</p>
+        </div>
+
+        <!-- v0 + R mode -->
+        <div id="mode-v0_R" class="known-section">
+          <div class="input-group">
+            <label>初速度 v₀ <span>INITIAL VELOCITY</span></label>
+            <div class="input-row">
+              <input type="number" id="i_v0_3" placeholder="0" value="25" min="0">
+              <span class="unit">m/s</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>水平射程 R <span>RANGE</span></label>
+            <div class="input-row">
+              <input type="number" id="i_R_3" placeholder="0" value="50" min="0">
+              <span class="unit">m</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- R + T mode -->
+        <div id="mode-R_T" class="known-section">
+          <div class="input-group">
+            <label>水平射程 R <span>RANGE</span></label>
+            <div class="input-row">
+              <input type="number" id="i_R_4" placeholder="0" value="40" min="0">
+              <span class="unit">m</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>飛行時間 T <span>TIME OF FLIGHT</span></label>
+            <div class="input-row">
+              <input type="number" id="i_T_4" placeholder="0" value="3" min="0">
+              <span class="unit">s</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom mode -->
+        <div id="mode-custom" class="known-section">
+          <p style="font-size:0.7rem;color:var(--muted);font-family:'Share Tech Mono',monospace;margin-bottom:12px;">填入任意已知量（留空代表未知）</p>
+          <div class="input-group">
+            <label>初速度 v₀ <span>m/s</span></label>
+            <div class="input-row">
+              <input type="number" id="c_v0" placeholder="未知">
+              <span class="unit">m/s</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>拋射角 θ <span>°</span></label>
+            <div class="input-row">
+              <input type="number" id="c_angle" placeholder="未知" min="0" max="90">
+              <span class="unit">deg</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>初始高度 y₀ <span>m</span></label>
+            <div class="input-row">
+              <input type="number" id="c_h0" placeholder="0" value="0">
+              <span class="unit">m</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>水平射程 R <span>m</span></label>
+            <div class="input-row">
+              <input type="number" id="c_R" placeholder="未知">
+              <span class="unit">m</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>最大高度 H <span>m</span></label>
+            <div class="input-row">
+              <input type="number" id="c_H" placeholder="未知">
+              <span class="unit">m</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>飛行時間 T <span>s</span></label>
+            <div class="input-row">
+              <input type="number" id="c_T" placeholder="未知">
+              <span class="unit">s</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="input-group">
+          <label>重力加速度 g <span>GRAVITY</span></label>
+          <div class="input-row">
+            <input type="number" id="i_g" value="9.8" min="0" step="0.1">
+            <span class="unit">m/s²</span>
+          </div>
+        </div>
+
+        <div class="speed-row" style="margin-bottom:16px;">
+          <label>動畫速度</label>
+          <input type="range" id="anim_speed" min="0.5" max="5" step="0.5" value="1">
+          <span class="speed-val" id="speed_label">1×</span>
+        </div>
+
+        <button class="btn btn-primary" onclick="calculate()">▶ 計算並播放</button>
+        <button class="btn btn-secondary" onclick="resetAll()">↺ 重置</button>
+
+        <div class="divider"></div>
+
+        <!-- Results -->
+        <div class="panel-title">▸ 計算結果</div>
+        <div id="results-area">
+          <div class="empty-state">— 尚未計算 —</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+      <!-- Canvas -->
+      <div class="canvas-wrap">
+        <div class="canvas-header">
+          <div class="panel-title">▸ 軌跡模擬</div>
+          <div class="playback-controls">
+            <button class="ctrl-btn" id="btn_play" onclick="togglePlay()">⏵ 播放</button>
+            <button class="ctrl-btn" onclick="replayAnim()">⟳ 重播</button>
+          </div>
+        </div>
+        <canvas id="trajCanvas" width="900" height="420"></canvas>
+        <div class="canvas-info">
+          <div class="progress-bar" style="flex:1"><div class="progress-fill" id="progress_fill"></div></div>
+        </div>
+        <div class="canvas-info">
+          <div class="info-chip">t = <span id="ci_t">—</span> s</div>
+          <div class="info-chip">x = <span id="ci_x">—</span> m</div>
+          <div class="info-chip">y = <span id="ci_y">—</span> m</div>
+          <div class="info-chip">vx = <span id="ci_vx">—</span> m/s</div>
+          <div class="info-chip">vy = <span id="ci_vy">—</span> m/s</div>
+          <div class="info-chip">|v| = <span id="ci_v">—</span> m/s</div>
+        </div>
+      </div>
+
+      <!-- Angle table (for multi-angle modes) -->
+      <div class="panel" id="angle-table-panel" style="display:none;">
+        <div class="panel-title">▸ 各角度對照表</div>
+        <div class="angle-table-wrap">
+          <table id="angle-table">
+            <thead>
+              <tr>
+                <th>θ (°)</th>
+                <th>v₀ (m/s)</th>
+                <th>vx (m/s)</th>
+                <th>vy₀ (m/s)</th>
+                <th>R (m)</th>
+                <th>H_max (m)</th>
+                <th>T (s)</th>
+                <th>落點速度 (m/s)</th>
+              </tr>
+            </thead>
+            <tbody id="angle-table-body"></tbody>
+          </table>
+        </div>
+        <p style="font-size:0.65rem;color:var(--muted);font-family:'Share Tech Mono',monospace;margin-top:10px;">點擊任一行可在上方顯示該角度的軌跡</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const g_input = () => parseFloat(document.getElementById('i_g').value) || 9.8;
+let currentMode = 'v0_angle';
+let animReq = null;
+let isPlaying = false;
+let animData = null;
+let animProgress = 0;
+let lastTimestamp = null;
+
+// Speed
+document.getElementById('anim_speed').addEventListener('input', function() {
+  document.getElementById('speed_label').textContent = this.value + '×';
+});
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach((t,i) => {
+    t.classList.toggle('active', ['v0_angle','v0_h','v0_R','R_T','custom'][i] === mode);
+  });
+  document.querySelectorAll('.known-section').forEach(s => s.classList.remove('visible'));
+  document.getElementById('mode-' + mode).classList.add('visible');
+}
+
+function fmt(v, d=2) {
+  if (!isFinite(v)) return '—';
+  return v.toFixed(d);
+}
+
+function calculate() {
+  const G = g_input();
+  let v0, angle_deg, h0=0, R, H, T, vxf, vyf, vf;
+  let trajectories = null; // for multi-angle
+
+  if (currentMode === 'v0_angle') {
+    v0 = parseFloat(document.getElementById('i_v0_1').value);
+    angle_deg = parseFloat(document.getElementById('i_angle_1').value);
+    h0 = parseFloat(document.getElementById('i_h0_1').value) || 0;
+    if (isNaN(v0) || isNaN(angle_deg)) return alert('請輸入初速度與角度');
+    const rad = angle_deg * Math.PI / 180;
+    const vx0 = v0 * Math.cos(rad);
+    const vy0 = v0 * Math.sin(rad);
+    H = h0 + vy0*vy0 / (2*G);
+    // time to ground from h0: h0 + vy0*t - 0.5*g*t^2 = 0
+    T = (vy0 + Math.sqrt(vy0*vy0 + 2*G*h0)) / G;
+    R = vx0 * T;
+    vxf = vx0;
+    vyf = -(vy0 - G*T); // should be negative (downward)
+    vf = Math.sqrt(vxf*vxf + (vy0 - G*T)**2);
+    showResults({v0,angle_deg,h0,vx0,vy0,R,H,T,vf,G});
+    launchAnimation({v0,angle_deg,h0,R,H,T,G,single:true});
+  }
+
+  else if (currentMode === 'v0_h') {
+    v0 = parseFloat(document.getElementById('i_v0_2').value);
+    h0 = parseFloat(document.getElementById('i_h_2').value) || 0;
+    if (isNaN(v0)) return alert('請輸入初速度');
+    // Generate table for angles 0..90 step 5
+    const rows = [];
+    for (let a=5; a<=85; a+=5) {
+      const rad = a * Math.PI/180;
+      const vx0 = v0*Math.cos(rad), vy0 = v0*Math.sin(rad);
+      const Hmax = h0 + vy0*vy0/(2*G);
+      const Tf = (vy0 + Math.sqrt(vy0*vy0 + 2*G*h0))/G;
+      const Rf = vx0*Tf;
+      const vfall = Math.sqrt(vx0*vx0 + (vy0-G*Tf)**2);
+      rows.push({a,v0,vx0,vy0,R:Rf,H:Hmax,T:Tf,vf:vfall,h0,G});
+    }
+    showAngleTable(rows);
+    // show first row
+    const r=rows[Math.floor(rows.length/2)];
+    showResults({v0:r.v0,angle_deg:r.a,h0:r.h0,vx0:r.vx0,vy0:r.vy0,R:r.R,H:r.H,T:r.T,vf:r.vf,G});
+    launchAnimation(r);
+  }
+
+  else if (currentMode === 'v0_R') {
+    v0 = parseFloat(document.getElementById('i_v0_3').value);
+    R = parseFloat(document.getElementById('i_R_3').value);
+    if (isNaN(v0)||isNaN(R)) return alert('請輸入初速度與射程');
+    // sin(2θ) = R*g/v0^2
+    const sinVal = R*G/(v0*v0);
+    if (Math.abs(sinVal)>1) return alert(`無解：R 超出最大射程 ${fmt(v0*v0/G)} m`);
+    const angle1 = Math.asin(sinVal)/2;
+    const angle2 = Math.PI/2 - angle1;
+    const makeRow = (rad) => {
+      const a = rad*180/Math.PI;
+      const vx0=v0*Math.cos(rad), vy0=v0*Math.sin(rad);
+      const Tf = 2*vy0/G;
+      const Hmax = vy0*vy0/(2*G);
+      const Rf = vx0*Tf;
+      return {a,v0,vx0,vy0,R:Rf,H:Hmax,T:Tf,vf:v0,h0:0,G};
+    };
+    const rows=[makeRow(angle1), makeRow(angle2)];
+    showAngleTable(rows);
+    showResults({v0,angle_deg:rows[0].a,h0:0,vx0:rows[0].vx0,vy0:rows[0].vy0,R,H:rows[0].H,T:rows[0].T,vf:v0,G});
+    launchAnimation(rows[0]);
+  }
+
+  else if (currentMode === 'R_T') {
+    R = parseFloat(document.getElementById('i_R_4').value);
+    T = parseFloat(document.getElementById('i_T_4').value);
+    if (isNaN(R)||isNaN(T)) return alert('請輸入射程與飛行時間');
+    const vx0 = R/T;
+    const vy0 = G*T/2;
+    v0 = Math.sqrt(vx0*vx0+vy0*vy0);
+    angle_deg = Math.atan2(vy0,vx0)*180/Math.PI;
+    h0=0;
+    H = vy0*vy0/(2*G);
+    vf = v0;
+    showResults({v0,angle_deg,h0,vx0,vy0,R,H,T,vf,G});
+    launchAnimation({v0,angle_deg,h0,R,H,T,G,single:true});
+  }
+
+  else if (currentMode === 'custom') {
+    const cv0 = document.getElementById('c_v0').value;
+    const ca  = document.getElementById('c_angle').value;
+    const ch0 = document.getElementById('c_h0').value;
+    const cR  = document.getElementById('c_R').value;
+    const cH  = document.getElementById('c_H').value;
+    const cT  = document.getElementById('c_T').value;
+
+    const has = (v) => v !== '' && v !== null && !isNaN(parseFloat(v));
+    const n = (v) => parseFloat(v);
+
+    let solved = solveCustom({
+      v0: has(cv0)?n(cv0):null,
+      angle_deg: has(ca)?n(ca):null,
+      h0: has(ch0)?n(ch0):0,
+      R: has(cR)?n(cR):null,
+      H: has(cH)?n(cH):null,
+      T: has(cT)?n(cT):null,
+      G
+    });
+
+    if (!solved) return alert('條件不足或矛盾，無法求解');
+    showResults(solved);
+    launchAnimation(solved);
+  }
+}
+
+function solveCustom({v0, angle_deg, h0, R, H, T, G}) {
+  let rad;
+
+  // Case: v0 + angle
+  if (v0!==null && angle_deg!==null) {
+    rad = angle_deg*Math.PI/180;
+    const vx0=v0*Math.cos(rad), vy0=v0*Math.sin(rad);
+    const Tf=(vy0+Math.sqrt(vy0*vy0+2*G*h0))/G;
+    const Rf=vx0*Tf;
+    const Hmax=h0+vy0*vy0/(2*G);
+    const vf=Math.sqrt(vx0*vx0+(vy0-G*Tf)**2);
+    return {v0,angle_deg,h0,vx0,vy0,R:Rf,H:Hmax,T:Tf,vf,G};
+  }
+
+  // Case: R + T
+  if (R!==null && T!==null) {
+    const vx0=R/T, vy0=G*T/2+G*h0/T; // with h0
+    // Actually: y=h0+vy0*t - 0.5g*t^2=0 at t=T => vy0=(0.5g*T^2-h0)/T
+    const vy0c = (0.5*G*T*T - h0) / T;
+    const vx0c = R/T;
+    v0=Math.sqrt(vx0c*vx0c+vy0c*vy0c);
+    angle_deg=Math.atan2(vy0c,vx0c)*180/Math.PI;
+    const Hmax=h0+vy0c*vy0c/(2*G);
+    const vf=Math.sqrt(vx0c*vx0c+(vy0c-G*T)**2);
+    return {v0,angle_deg,h0,vx0:vx0c,vy0:vy0c,R,H:Hmax,T,vf,G};
+  }
+
+  // Case: v0 + R (h0=0 assumed for simplicity if h0=0)
+  if (v0!==null && R!==null && h0===0) {
+    const sinVal=R*G/(v0*v0);
+    if (Math.abs(sinVal)>1) return null;
+    rad=Math.asin(sinVal)/2;
+    angle_deg=rad*180/Math.PI;
+    const vx0=v0*Math.cos(rad), vy0=v0*Math.sin(rad);
+    const Tf=2*vy0/G;
+    const Hmax=vy0*vy0/(2*G);
+    return {v0,angle_deg,h0,vx0,vy0,R,H:Hmax,T:Tf,vf:v0,G};
+  }
+
+  // Case: v0 + H (h0=0)
+  if (v0!==null && H!==null && angle_deg===null) {
+    // H = vy0^2/(2g) + h0 => vy0 = sqrt(2g(H-h0))
+    const vy0=Math.sqrt(2*G*(H-h0));
+    if (isNaN(vy0)) return null;
+    // need angle or vx0 — pick 45 if not given
+    return null; // insufficient
+  }
+
+  // Case: angle + H
+  if (angle_deg!==null && H!==null) {
+    rad=angle_deg*Math.PI/180;
+    const sinA=Math.sin(rad), cosA=Math.cos(rad);
+    const vy0=Math.sqrt(2*G*(H-h0));
+    v0=vy0/sinA;
+    const vx0=v0*cosA;
+    const Tf=(vy0+Math.sqrt(vy0*vy0+2*G*h0))/G;
+    const Rf=vx0*Tf;
+    const vf=Math.sqrt(vx0*vx0+(vy0-G*Tf)**2);
+    return {v0,angle_deg,h0,vx0,vy0,R:Rf,H,T:Tf,vf,G};
+  }
+
+  // Case: angle + T
+  if (angle_deg!==null && T!==null) {
+    rad=angle_deg*Math.PI/180;
+    const tanA=Math.tan(rad);
+    // vy0 - g*T/2 from symmetry (h0=0): T=2vy0/g => vy0=gT/2
+    // With h0: h0+vy0*T-0.5g*T^2=0 => vy0=(0.5g*T^2-h0)/T
+    const vy0=(0.5*G*T*T-h0)/T;
+    const vx0=vy0/tanA;
+    v0=Math.sqrt(vx0*vx0+vy0*vy0);
+    const Rf=vx0*T;
+    const Hmax=h0+vy0*vy0/(2*G);
+    const vf=Math.sqrt(vx0*vx0+(vy0-G*T)**2);
+    return {v0,angle_deg,h0,vx0,vy0,R:Rf,H:Hmax,T,vf,G};
+  }
+
+  // Case: angle + R
+  if (angle_deg!==null && R!==null && h0===0) {
+    rad=angle_deg*Math.PI/180;
+    // R = v0^2*sin(2θ)/g
+    v0=Math.sqrt(R*G/Math.sin(2*rad));
+    const vx0=v0*Math.cos(rad), vy0=v0*Math.sin(rad);
+    const Tf=2*vy0/G;
+    const Hmax=vy0*vy0/(2*G);
+    return {v0,angle_deg,h0,vx0,vy0,R,H:Hmax,T:Tf,vf:v0,G};
+  }
+
+  // Case: H + T (h0=0)
+  if (H!==null && T!==null) {
+    const vy0=(0.5*G*T*T-h0)/T;
+    // H = h0 + vy0^2/(2g)
+    const HmaxCheck = h0 + vy0*vy0/(2*G);
+    if (Math.abs(HmaxCheck-H)>1e-3 && H!==null) {
+      // contradiction if both given
+    }
+    // From H alone we get vy0
+    const vy0fromH = Math.sqrt(2*G*(H-h0));
+    // From T: vx0 = R/T — need R
+    if (R!==null) {
+      const vx0=R/T;
+      v0=Math.sqrt(vx0*vx0+vy0fromH*vy0fromH);
+      angle_deg=Math.atan2(vy0fromH,vx0)*180/Math.PI;
+      const vf=Math.sqrt(vx0*vx0+(vy0fromH-G*T)**2);
+      return {v0,angle_deg,h0,vx0,vy0:vy0fromH,R,H,T,vf,G};
+    }
+  }
+
+  return null;
+}
+
+function showResults(data) {
+  const {v0,angle_deg,h0,vx0,vy0,R,H,T,vf,G} = data;
+  document.getElementById('results-area').innerHTML = `
+    <div class="results-grid">
+      <div class="result-card highlight">
+        <div class="r-label">RANGE / 射程</div>
+        <div class="r-value">${fmt(R)}<span class="r-unit">m</span></div>
+      </div>
+      <div class="result-card highlight2">
+        <div class="r-label">MAX HEIGHT / 最大高度</div>
+        <div class="r-value">${fmt(H)}<span class="r-unit">m</span></div>
+      </div>
+      <div class="result-card">
+        <div class="r-label">TIME / 飛行時間</div>
+        <div class="r-value">${fmt(T)}<span class="r-unit">s</span></div>
+      </div>
+      <div class="result-card">
+        <div class="r-label">INITIAL SPEED / 初速度</div>
+        <div class="r-value">${fmt(v0)}<span class="r-unit">m/s</span></div>
+      </div>
+      <div class="result-card">
+        <div class="r-label">ANGLE / 角度</div>
+        <div class="r-value">${fmt(angle_deg,1)}<span class="r-unit">°</span></div>
+      </div>
+      <div class="result-card">
+        <div class="r-label">FINAL SPEED / 落點速度</div>
+        <div class="r-value">${fmt(vf)}<span class="r-unit">m/s</span></div>
+      </div>
+      <div class="result-card">
+        <div class="r-label">Vx / 水平分速</div>
+        <div class="r-value">${fmt(vx0)}<span class="r-unit">m/s</span></div>
+      </div>
+      <div class="result-card">
+        <div class="r-label">Vy₀ / 初始垂直分速</div>
+        <div class="r-value">${fmt(vy0)}<span class="r-unit">m/s</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function showAngleTable(rows) {
+  const panel = document.getElementById('angle-table-panel');
+  panel.style.display = 'block';
+  const tbody = document.getElementById('angle-table-body');
+  tbody.innerHTML = rows.map((r,i) => `
+    <tr onclick="selectAngleRow(${i})" id="arow-${i}">
+      <td>${fmt(r.a,1)}</td>
+      <td>${fmt(r.v0)}</td>
+      <td>${fmt(r.vx0)}</td>
+      <td>${fmt(r.vy0)}</td>
+      <td>${fmt(r.R)}</td>
+      <td>${fmt(r.H)}</td>
+      <td>${fmt(r.T)}</td>
+      <td>${fmt(r.vf)}</td>
+    </tr>
+  `).join('');
+  // store rows globally
+  window._angleRows = rows;
+}
+
+function selectAngleRow(i) {
+  document.querySelectorAll('#angle-table-body tr').forEach((tr,j) => {
+    tr.classList.toggle('selected-row', j===i);
+  });
+  const r = window._angleRows[i];
+  showResults({v0:r.v0,angle_deg:r.a,h0:r.h0,vx0:r.vx0,vy0:r.vy0,R:r.R,H:r.H,T:r.T,vf:r.vf,G:r.G});
+  launchAnimation(r);
+}
+
+// ---- Animation ----
+function launchAnimation(data) {
+  stopAnim();
+  animData = data;
+  animProgress = 0;
+  isPlaying = false;
+  drawFrame(0);
+  setTimeout(() => { startAnim(); }, 100);
+}
+
+function startAnim() {
+  isPlaying = true;
+  document.getElementById('btn_play').textContent = '⏸ 暫停';
+  lastTimestamp = null;
+  animReq = requestAnimationFrame(animStep);
+}
+
+function stopAnim() {
+  isPlaying = false;
+  document.getElementById('btn_play').textContent = '⏵ 播放';
+  if (animReq) cancelAnimationFrame(animReq);
+}
+
+function togglePlay() {
+  if (!animData) return;
+  if (isPlaying) stopAnim();
+  else {
+    if (animProgress >= 1) animProgress = 0;
+    startAnim();
+  }
+}
+
+function replayAnim() {
+  if (!animData) return;
+  stopAnim();
+  animProgress = 0;
+  setTimeout(() => startAnim(), 50);
+}
+
+function animStep(ts) {
+  if (!lastTimestamp) lastTimestamp = ts;
+  const dt = (ts - lastTimestamp) / 1000;
+  lastTimestamp = ts;
+  const speed = parseFloat(document.getElementById('anim_speed').value);
+  const T = animData.T;
+  animProgress += (dt * speed) / T;
+  if (animProgress >= 1) { animProgress = 1; drawFrame(animProgress); stopAnim(); return; }
+  drawFrame(animProgress);
+  animReq = requestAnimationFrame(animStep);
+}
+
+function drawFrame(progress) {
+  const canvas = document.getElementById('trajCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H_canvas = canvas.height;
+
+  const {v0, angle_deg, h0=0, vx0, vy0, R, H, T, G} = animData;
+
+  // Coordinate mapping
+  const pad = { l:60, r:30, t:30, b:50 };
+  const plotW = W - pad.l - pad.r;
+  const plotH = H_canvas - pad.t - pad.b;
+
+  const xMax = R * 1.1;
+  const yMax = Math.max(H * 1.2, h0 * 1.2 + 1, 1);
+
+  const toCanv = (x, y) => ({
+    cx: pad.l + (x / xMax) * plotW,
+    cy: pad.t + plotH - (y / yMax) * plotH
+  });
+
+  // Clear
+  ctx.clearRect(0, 0, W, H_canvas);
+
+  // Background gradient
+  const bg = ctx.createLinearGradient(0,0,0,H_canvas);
+  bg.addColorStop(0,'#0a0e1a');
+  bg.addColorStop(1,'#060810');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,W,H_canvas);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(30,58,95,0.6)';
+  ctx.lineWidth = 1;
+  const gx = 5, gy = 5;
+  for (let i=0; i<=gx; i++) {
+    const cx = pad.l + (i/gx)*plotW;
+    ctx.beginPath(); ctx.moveTo(cx, pad.t); ctx.lineTo(cx, pad.t+plotH); ctx.stroke();
+    const val = (xMax*i/gx);
+    ctx.fillStyle = 'rgba(74,96,128,0.8)';
+    ctx.font = '10px Share Tech Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(fmt(val,1), cx, pad.t+plotH+14);
+  }
+  for (let i=0; i<=gy; i++) {
+    const cy = pad.t + (i/gy)*plotH;
+    ctx.beginPath(); ctx.moveTo(pad.l, cy); ctx.lineTo(pad.l+plotW, cy); ctx.stroke();
+    const val = yMax*(gy-i)/gy;
+    ctx.fillStyle = 'rgba(74,96,128,0.8)';
+    ctx.font = '10px Share Tech Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt(val,1), pad.l-6, cy+4);
+  }
+
+  // Axes labels
+  ctx.fillStyle = '#4a6080';
+  ctx.font = '11px Noto Sans TC, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('水平距離 x (m)', pad.l + plotW/2, H_canvas-4);
+  ctx.save();
+  ctx.translate(14, pad.t + plotH/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillText('高度 y (m)', 0, 0);
+  ctx.restore();
+
+  // Ground line
+  const groundY = toCanv(0,0).cy;
+  ctx.strokeStyle = 'rgba(0,212,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(pad.l, groundY); ctx.lineTo(pad.l+plotW, groundY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Max height dashed line
+  const {cy: hLineCy} = toCanv(0, H);
+  ctx.strokeStyle = 'rgba(255,107,53,0.25)';
+  ctx.lineWidth=1; ctx.setLineDash([3,5]);
+  ctx.beginPath(); ctx.moveTo(pad.l, hLineCy); ctx.lineTo(pad.l+plotW, hLineCy); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,107,53,0.5)';
+  ctx.font='9px Share Tech Mono, monospace';
+  ctx.textAlign='left';
+  ctx.fillText('H='+fmt(H)+'m', pad.l+4, hLineCy-3);
+
+  // Full ghost trajectory
+  ctx.strokeStyle = 'rgba(0,212,255,0.12)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  const steps = 200;
+  for (let i=0; i<=steps; i++) {
+    const t = (i/steps)*T;
+    const x = vx0*t;
+    const y = h0 + vy0*t - 0.5*G*t*t;
+    const {cx, cy} = toCanv(x, y);
+    i===0 ? ctx.moveTo(cx,cy) : ctx.lineTo(cx,cy);
+  }
+  ctx.stroke();
+
+  // Trajectory up to progress
+  const tNow = progress * T;
+  const trailSteps = Math.floor(progress * steps);
+
+  // Glow trail
+  ctx.save();
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = '#00d4ff';
+  const grad = ctx.createLinearGradient(pad.l, 0, pad.l+plotW, 0);
+  grad.addColorStop(0, 'rgba(0,100,180,0.6)');
+  grad.addColorStop(1, 'rgba(0,212,255,0.9)');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let i=0; i<=trailSteps; i++) {
+    const t = (i/steps)*T;
+    const x = vx0*t;
+    const y = h0 + vy0*t - 0.5*G*t*t;
+    const {cx, cy} = toCanv(x, y);
+    i===0 ? ctx.moveTo(cx,cy) : ctx.lineTo(cx,cy);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  // Current position
+  const xNow = vx0*tNow;
+  const yNow = h0 + vy0*tNow - 0.5*G*tNow*tNow;
+  const {cx: bx, cy: by} = toCanv(xNow, yNow);
+
+  // Velocity vector
+  const vyNow = vy0 - G*tNow;
+  const vScale = 6;
+  const vxCanvas = vx0 * vScale;
+  const vyCanvas = -vyNow * vScale;
+  const vecLen = Math.sqrt(vxCanvas*vxCanvas + vyCanvas*vyCanvas);
+  if (vecLen > 2) {
+    ctx.strokeStyle = 'rgba(57,255,20,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + vxCanvas, by + vyCanvas);
+    ctx.stroke();
+    // arrowhead
+    const angle = Math.atan2(vyCanvas, vxCanvas);
+    const alen = 8;
+    ctx.fillStyle = 'rgba(57,255,20,0.7)';
+    ctx.beginPath();
+    ctx.moveTo(bx+vxCanvas, by+vyCanvas);
+    ctx.lineTo(bx+vxCanvas - alen*Math.cos(angle-0.4), by+vyCanvas - alen*Math.sin(angle-0.4));
+    ctx.lineTo(bx+vxCanvas - alen*Math.cos(angle+0.4), by+vyCanvas - alen*Math.sin(angle+0.4));
+    ctx.closePath(); ctx.fill();
+  }
+
+  // Ball
+  ctx.save();
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = '#00d4ff';
+  const ballGrad = ctx.createRadialGradient(bx-2, by-2, 1, bx, by, 8);
+  ballGrad.addColorStop(0, '#ffffff');
+  ballGrad.addColorStop(0.3, '#00d4ff');
+  ballGrad.addColorStop(1, 'rgba(0,100,180,0)');
+  ctx.fillStyle = ballGrad;
+  ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // Landing marker
+  if (progress >= 1) {
+    const {cx: lx, cy: ly} = toCanv(R, 0);
+    ctx.strokeStyle = 'rgba(255,107,53,0.8)';
+    ctx.lineWidth = 2;
+    const s = 10;
+    ctx.beginPath();
+    ctx.moveTo(lx-s, ly-s); ctx.lineTo(lx+s, ly+s);
+    ctx.moveTo(lx+s, ly-s); ctx.lineTo(lx-s, ly+s);
+    ctx.stroke();
+    ctx.fillStyle='rgba(255,107,53,0.8)';
+    ctx.font='10px Share Tech Mono,monospace';
+    ctx.textAlign='center';
+    ctx.fillText('R='+fmt(R)+'m', lx, ly+20);
+  }
+
+  // Start marker
+  const {cx: sx, cy: sy} = toCanv(0, h0);
+  ctx.fillStyle='rgba(57,255,20,0.8)';
+  ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI*2); ctx.fill();
+
+  // Progress
+  document.getElementById('progress_fill').style.width = (progress*100)+'%';
+
+  // Info chips
+  document.getElementById('ci_t').textContent = fmt(tNow,2);
+  document.getElementById('ci_x').textContent = fmt(xNow,2);
+  document.getElementById('ci_y').textContent = fmt(Math.max(0,yNow),2);
+  document.getElementById('ci_vx').textContent = fmt(vx0,2);
+  document.getElementById('ci_vy').textContent = fmt(vy0-G*tNow,2);
+  document.getElementById('ci_v').textContent = fmt(Math.sqrt(vx0*vx0+(vy0-G*tNow)**2),2);
+}
+
+function resetAll() {
+  stopAnim();
+  animData = null;
+  animProgress = 0;
+  document.getElementById('results-area').innerHTML = '<div class="empty-state">— 尚未計算 —</div>';
+  document.getElementById('angle-table-panel').style.display='none';
+  document.getElementById('progress_fill').style.width='0%';
+  ['ci_t','ci_x','ci_y','ci_vx','ci_vy','ci_v'].forEach(id=>document.getElementById(id).textContent='—');
+  const canvas=document.getElementById('trajCanvas');
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const bg=ctx.createLinearGradient(0,0,0,canvas.height);
+  bg.addColorStop(0,'#0a0e1a'); bg.addColorStop(1,'#060810');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+// Init
+resetAll();
+</script>
+</body>
+</html>
